@@ -53,7 +53,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             avatar: null
           });
         }
-        
+
         // Check database for other users
         const user = await storage.getUserByUsername(username);
         if (!user) {
@@ -103,7 +103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     passport.authenticate("local", (err, user, info) => {
       if (err) return next(err);
       if (!user) return res.status(401).json({ message: info.message });
-      
+
       req.logIn(user, (err) => {
         if (err) return next(err);
         return res.status(200).json({
@@ -159,24 +159,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/users", isAdmin, async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
-      
+
       // Verificar se o usuário já existe
       const existingUser = await storage.getUserByUsername(userData.username);
       if (existingUser) {
         return res.status(400).json({ message: "Nome de usuário já está em uso" });
       }
-      
+
       const existingEmail = await storage.getUserByEmail(userData.email);
       if (existingEmail) {
         return res.status(400).json({ message: "Email já está em uso" });
       }
-      
+
       const newUser = await storage.createUser(userData);
-      
+
       // Remover senha da resposta
       const { password, ...userResponse } = newUser;
       res.status(201).json(userResponse);
-      
+
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
@@ -189,17 +189,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/projects", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const search = req.query.search as string;
+      const status = req.query.status as string;
+
+      const offset = (page - 1) * limit;
+
       let projects;
-      
+      let total;
+
       if (user.role === "admin") {
-        projects = await storage.getProjects();
+        [projects, total] = await Promise.all([
+          storage.getProjectsPaginated(offset, limit, search, status),
+          storage.getProjectsCount(search, status)
+        ]);
       } else {
-        projects = await storage.getProjectsByUser(user.id);
+        [projects, total] = await Promise.all([
+          storage.getProjectsByUserPaginated(user.id, offset, limit, search, status),
+          storage.getProjectsByUserCount(user.id, search, status)
+        ]);
       }
-      
-      res.json(projects);
+
+      const totalPages = Math.ceil(total / limit);
+
+      res.set('Cache-Control', 'public, max-age=60'); // Cache por 1 minuto
+      res.json({
+        data: projects,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages
+        }
+      });
     } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar projetos" });
+      console.error('Erro ao buscar projetos:', error);
+      res.status(500).json({ 
+        message: "Erro ao buscar projetos",
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
@@ -207,22 +236,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
-      
+
       // Verificar acesso ao projeto
       const user = req.user as any;
       if (user.role !== "admin" && project.createdById !== user.id) {
         const members = await storage.getProjectMembers(projectId);
         const isMember = members.some(m => m.userId === user.id);
-        
+
         if (!isMember) {
           return res.status(403).json({ message: "Acesso negado a este projeto" });
         }
       }
-      
+
       res.json(project);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar projeto" });
@@ -236,16 +265,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         createdById: user.id
       });
-      
+
       const newProject = await storage.createProject(projectData);
-      
+
       // Adicionar o criador como membro do projeto
       await storage.addProjectMember({
         projectId: newProject.id,
         userId: user.id,
         role: "gerente"
       });
-      
+
       res.status(201).json(newProject);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -259,17 +288,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
-      
+
       // Verificar permissão para editar
       const user = req.user as any;
       if (user.role !== "admin" && project.createdById !== user.id) {
         return res.status(403).json({ message: "Permissão negada para editar este projeto" });
       }
-      
+
       const updatedProject = await storage.updateProject(projectId, req.body);
       res.json(updatedProject);
     } catch (error) {
@@ -284,17 +313,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
-      
+
       // Verificar permissão para deletar
       const user = req.user as any;
       if (user.role !== "admin" && project.createdById !== user.id) {
         return res.status(403).json({ message: "Permissão negada para excluir este projeto" });
       }
-      
+
       await storage.deleteProject(projectId);
       res.status(204).send();
     } catch (error) {
@@ -307,24 +336,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
-      
+
       // Verificar acesso ao projeto
       const user = req.user as any;
       if (user.role !== "admin" && project.createdById !== user.id) {
         const members = await storage.getProjectMembers(projectId);
         const isMember = members.some(m => m.userId === user.id);
-        
+
         if (!isMember) {
           return res.status(403).json({ message: "Acesso negado a este projeto" });
         }
       }
-      
+
       const members = await storage.getProjectMembers(projectId);
-      
+
       // Buscar detalhes dos usuários
       const memberDetails = await Promise.all(
         members.map(async (member) => {
@@ -345,7 +374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
       );
-      
+
       res.json(memberDetails);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar membros do projeto" });
@@ -356,39 +385,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
-      
+
       // Verificar permissão para adicionar membros
       const user = req.user as any;
       if (user.role !== "admin" && project.createdById !== user.id) {
         return res.status(403).json({ message: "Permissão negada para adicionar membros" });
       }
-      
+
       const { userId, role } = req.body;
-      
+
       // Verificar se o usuário existe
       const memberUser = await storage.getUser(userId);
       if (!memberUser) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
-      
+
       // Verificar se já é membro
       const members = await storage.getProjectMembers(projectId);
       const existingMember = members.find(m => m.userId === userId);
-      
+
       if (existingMember) {
         return res.status(400).json({ message: "Usuário já é membro deste projeto" });
       }
-      
+
       const newMember = await storage.addProjectMember({
         projectId,
         userId,
         role
       });
-      
+
       // Adicionar detalhes do usuário à resposta
       const memberWithUser = {
         ...newMember,
@@ -401,7 +430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           avatar: memberUser.avatar
         }
       };
-      
+
       res.status(201).json(memberWithUser);
     } catch (error) {
       res.status(500).json({ message: "Erro ao adicionar membro ao projeto" });
@@ -412,30 +441,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const projectId = parseInt(req.params.projectId);
       const memberUserId = parseInt(req.params.userId);
-      
+
       const project = await storage.getProject(projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
-      
+
       // Verificar permissão
       const user = req.user as any;
       if (user.role !== "admin" && project.createdById !== user.id) {
         return res.status(403).json({ message: "Permissão negada para remover membros" });
       }
-      
+
       // Não permitir remover o criador do projeto
       if (memberUserId === project.createdById) {
         return res.status(400).json({ message: "Não é possível remover o criador do projeto" });
       }
-      
+
       const result = await storage.removeProjectMember(projectId, memberUserId);
-      
+
       if (!result) {
         return res.status(404).json({ message: "Membro não encontrado neste projeto" });
       }
-      
+
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Erro ao remover membro do projeto" });
@@ -447,22 +476,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
-      
+
       // Verificar acesso ao projeto
       const user = req.user as any;
       if (user.role !== "admin" && project.createdById !== user.id) {
         const members = await storage.getProjectMembers(projectId);
         const isMember = members.some(m => m.userId === user.id);
-        
+
         if (!isMember) {
           return res.status(403).json({ message: "Acesso negado a este projeto" });
         }
       }
-      
+
       const tasks = await storage.getTasks(projectId);
       res.json(tasks);
     } catch (error) {
@@ -474,38 +503,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
-      
+
       // Verificar acesso ao projeto
       const user = req.user as any;
       if (user.role !== "admin" && project.createdById !== user.id) {
         const members = await storage.getProjectMembers(projectId);
         const isMember = members.some(m => m.userId === user.id);
-        
+
         if (!isMember) {
           return res.status(403).json({ message: "Acesso negado a este projeto" });
         }
       }
-      
+
       const taskData = insertTaskSchema.parse({
         ...req.body,
         projectId,
         createdById: (req.user as any).id
       });
-      
+
       // Se tem assignedToId, verificar se é membro do projeto
       if (taskData.assignedToId) {
         const members = await storage.getProjectMembers(projectId);
         const isAssigneeMember = members.some(m => m.userId === taskData.assignedToId);
-        
+
         if (!isAssigneeMember) {
           return res.status(400).json({ message: "O usuário designado deve ser membro do projeto" });
         }
       }
-      
+
       const newTask = await storage.createTask(taskData);
       res.status(201).json(newTask);
     } catch (error) {
@@ -520,38 +549,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const taskId = parseInt(req.params.id);
       const task = await storage.getTask(taskId);
-      
+
       if (!task) {
         return res.status(404).json({ message: "Tarefa não encontrada" });
       }
-      
+
       const project = await storage.getProject(task.projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
-      
+
       // Verificar permissão
       const user = req.user as any;
       const isAdmin = user.role === "admin";
       const isProjectOwner = project.createdById === user.id;
       const isTaskCreator = task.createdById === user.id;
       const isAssignee = task.assignedToId === user.id;
-      
+
       if (!isAdmin && !isProjectOwner && !isTaskCreator && !isAssignee) {
         return res.status(403).json({ message: "Permissão negada para atualizar esta tarefa" });
       }
-      
+
       // Se mudar assignedToId, verificar se é membro do projeto
       if (req.body.assignedToId && req.body.assignedToId !== task.assignedToId) {
         const members = await storage.getProjectMembers(task.projectId);
         const isAssigneeMember = members.some(m => m.userId === req.body.assignedToId);
-        
+
         if (!isAssigneeMember) {
           return res.status(400).json({ message: "O usuário designado deve ser membro do projeto" });
         }
       }
-      
+
       const updatedTask = await storage.updateTask(taskId, req.body);
       res.json(updatedTask);
     } catch (error) {
@@ -563,23 +592,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const taskId = parseInt(req.params.id);
       const task = await storage.getTask(taskId);
-      
+
       if (!task) {
         return res.status(404).json({ message: "Tarefa não encontrada" });
       }
-      
+
       const project = await storage.getProject(task.projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
-      
+
       // Verificar permissão
       const user = req.user as any;
       if (user.role !== "admin" && project.createdById !== user.id && task.createdById !== user.id) {
         return res.status(403).json({ message: "Permissão negada para excluir esta tarefa" });
       }
-      
+
       await storage.deleteTask(taskId);
       res.status(204).send();
     } catch (error) {
@@ -592,30 +621,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const taskId = parseInt(req.params.id);
       const task = await storage.getTask(taskId);
-      
+
       if (!task) {
         return res.status(404).json({ message: "Tarefa não encontrada" });
       }
-      
+
       const project = await storage.getProject(task.projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
-      
+
       // Verificar acesso ao projeto
       const user = req.user as any;
       if (user.role !== "admin" && project.createdById !== user.id) {
         const members = await storage.getProjectMembers(task.projectId);
         const isMember = members.some(m => m.userId === user.id);
-        
+
         if (!isMember) {
           return res.status(403).json({ message: "Acesso negado a esta tarefa" });
         }
       }
-      
+
       const comments = await storage.getComments(taskId);
-      
+
       // Adicionar detalhes do usuário a cada comentário
       const commentsWithUsers = await Promise.all(
         comments.map(async (comment) => {
@@ -631,7 +660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
       );
-      
+
       res.json(commentsWithUsers);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar comentários" });
@@ -642,37 +671,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const taskId = parseInt(req.params.id);
       const task = await storage.getTask(taskId);
-      
+
       if (!task) {
         return res.status(404).json({ message: "Tarefa não encontrada" });
       }
-      
+
       const project = await storage.getProject(task.projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
-      
+
       // Verificar acesso ao projeto
       const user = req.user as any;
       if (user.role !== "admin" && project.createdById !== user.id) {
         const members = await storage.getProjectMembers(task.projectId);
         const isMember = members.some(m => m.userId === user.id);
-        
+
         if (!isMember) {
           return res.status(403).json({ message: "Acesso negado a esta tarefa" });
         }
       }
-      
+
       const commentData = insertCommentSchema.parse({
         ...req.body,
         taskId,
         userId: (req.user as any).id,
         createdAt: new Date()
       });
-      
+
       const newComment = await storage.createComment(commentData);
-      
+
       // Adicionar detalhes do usuário à resposta
       const commentWithUser = {
         ...newComment,
@@ -683,7 +712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           avatar: user.avatar
         }
       };
-      
+
       res.status(201).json(commentWithUser);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -708,11 +737,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const notificationId = parseInt(req.params.id);
       const result = await storage.markNotificationAsRead(notificationId);
-      
+
       if (!result) {
         return res.status(404).json({ message: "Notificação não encontrada" });
       }
-      
+
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Erro ao marcar notificação como lida" });

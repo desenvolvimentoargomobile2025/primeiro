@@ -147,6 +147,45 @@ export class MemStorage implements IStorage {
   // Implementação de projetos
   async getProject(id: number): Promise<Project | undefined> {
     return this.projects.get(id);
+
+// Métodos otimizados com paginação
+async function getProjectsPaginated(offset: number, limit: number, search?: string, status?: string) {
+  let query = sql`SELECT * FROM projects`;
+  
+  if (search) {
+    query = sql`${query} WHERE name ILIKE ${`%${search}%`} OR description ILIKE ${`%${search}%`}`;
+  }
+  
+  if (status) {
+    query = search 
+      ? sql`${query} AND status = ${status}`
+      : sql`${query} WHERE status = ${status}`;
+  }
+  
+  query = sql`${query} ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+  
+  return await db.query.projects.findMany({
+    where: query
+  });
+}
+
+async function getProjectsCount(search?: string, status?: string) {
+  let query = sql`SELECT COUNT(*) FROM projects`;
+  
+  if (search) {
+    query = sql`${query} WHERE name ILIKE ${`%${search}%`} OR description ILIKE ${`%${search}%`}`;
+  }
+  
+  if (status) {
+    query = search 
+      ? sql`${query} AND status = ${status}`
+      : sql`${query} WHERE status = ${status}`;
+  }
+  
+  const result = await db.query.raw(query);
+  return parseInt(result[0].count);
+}
+
   }
 
   async createProject(projectData: InsertProject): Promise<Project> {

@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "wouter";
+import { Link, useNavigate } from "wouter";
 import { Button } from "@/components/ui/button";
 import { 
   Palette, 
@@ -20,6 +20,7 @@ interface ServiceItemProps {
 }
 
 const ServiceItem: React.FC<ServiceItemProps> = ({ icon, title, description, delay }) => {
+  const navigate = useNavigate();
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -27,18 +28,14 @@ const ServiceItem: React.FC<ServiceItemProps> = ({ icon, title, description, del
       transition={{ duration: 0.5, delay: delay }}
       viewport={{ once: true }}
     >
-      <Card className="bg-card h-full card-hover">
+      <Card className="bg-card h-full card-hover cursor-pointer" onClick={() => navigate('/servicos')}> {/* Corrected Link */}
         <CardContent className="p-6">
           <div className="w-14 h-14 rounded-lg bg-primary/20 flex items-center justify-center mb-6">
             {icon}
           </div>
           <h3 className="font-semibold text-xl text-foreground mb-3">{title}</h3>
           <p className="text-muted-foreground mb-4">{description}</p>
-          <Link href="/servicos">
-            <a className="text-secondary flex items-center font-medium">
-              Saiba mais <span className="ml-2">→</span>
-            </a>
-          </Link>
+          {/* Removed nested <Link> and <a> */}
         </CardContent>
       </Card>
     </motion.div>
