@@ -1,7 +1,5 @@
 # Argo Mobile 
 
-![Logo Argo Mobile](link-para-logo.png)
-
 ## 📱 Sobre o Projeto
 
 O Argo Mobile é um sistema completo para gestão de projetos de desenvolvimento de jogos mobile. Desenvolvido para atender às necessidades específicas da empresa Argo Mobile Games, o sistema gerencia o fluxo de trabalho de equipes de designers, programadores e gerentes de projeto.
@@ -32,7 +30,6 @@ O projeto consiste em:
 ## 🖥️ Screenshots e Funcionalidades
 
 ### Página Inicial
-![Página Inicial](screenshots/homepage.png)
 
 A página inicial apresenta a Argo Mobile com um design moderno e atraente em tons de azul e roxo. Possui:
 - Banner principal com chamada para ação
@@ -43,7 +40,6 @@ A página inicial apresenta a Argo Mobile com um design moderno e atraente em to
 - Formulário de contato rápido
 
 ### Página de Serviços
-![Página de Serviços](screenshots/services.png)
 
 Apresenta todos os serviços oferecidos pela Argo Mobile:
 - Design de Games
@@ -60,7 +56,6 @@ Apresenta todos os serviços oferecidos pela Argo Mobile:
 - Consultoria em Games
 
 ### Página de Portfólio
-![Página de Portfólio](screenshots/portfolio.png)
 
 Exibe os jogos desenvolvidos pela empresa:
 - Categorização por tipo de jogo (RPG, Corrida, Puzzle, etc.)
@@ -69,7 +64,6 @@ Exibe os jogos desenvolvidos pela empresa:
 - Plataformas suportadas (iOS/Android)
 
 ### Página Sobre
-![Página Sobre](screenshots/about.png)
 
 Conta a história da empresa e apresenta:
 - Visão, missão e valores
@@ -79,7 +73,6 @@ Conta a história da empresa e apresenta:
 - Cultura organizacional
 
 ### Página de Contato
-![Página de Contato](screenshots/contact.png)
 
 Permite contato direto com a empresa:
 - Formulário de contato completo
@@ -89,7 +82,6 @@ Permite contato direto com a empresa:
 - Links para redes sociais
 
 ### Página de Login
-![Página de Login](screenshots/login.png)
 
 Portal de acesso ao sistema interno:
 - Formulário de autenticação seguro
@@ -97,7 +89,6 @@ Portal de acesso ao sistema interno:
 - Design clean e moderno
 
 ### Dashboard Administrativo
-![Dashboard](screenshots/dashboard.png)
 
 Visão geral do sistema interno com:
 - Métricas de projetos ativos
@@ -107,7 +98,6 @@ Visão geral do sistema interno com:
 - Acesso rápido às funcionalidades mais usadas
 
 ### Gestão de Projetos
-![Projetos](screenshots/projects.png)
 
 Gerenciamento completo de projetos de jogos:
 - Lista de todos os projetos
