@@ -1,4 +1,4 @@
-# Argo Mobile - Sistema de Gerenciamento de Projetos de Games
+# Argo Mobile 
 
 ![Logo Argo Mobile](link-para-logo.png)
 
