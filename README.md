@@ -107,7 +107,6 @@ Gerenciamento completo de projetos de jogos:
 - Membros da equipe alocados
 
 ### Detalhe do Projeto
-![Detalhe do Projeto](screenshots/project-detail.png)
 
 Visão detalhada de um projeto específico:
 - Informações gerais do projeto
@@ -117,7 +116,6 @@ Visão detalhada de um projeto específico:
 - Gráficos de progresso
 
 ### Gestão de Tarefas
-![Tarefas](screenshots/tasks.png)
 
 Administração completa de tarefas:
 - Visualização de todas as tarefas atribuídas
@@ -127,7 +125,6 @@ Administração completa de tarefas:
 - Prazos e prioridades
 
 ### Gerenciamento de Equipe
-![Equipe](screenshots/team.png)
 
 Controle da equipe de desenvolvimento:
 - Lista de todos os membros
@@ -137,7 +134,6 @@ Controle da equipe de desenvolvimento:
 - Adição de novos membros
 
 ### Perfil de Usuário
-![Perfil](screenshots/profile.png)
 
 Gerenciamento do perfil pessoal:
 - Informações do usuário
