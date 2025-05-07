@@ -42,6 +42,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
+        // Check for admin credentials
+        if (username === 'admin' && password === 'admin') {
+          return done(null, {
+            id: 1,
+            username: 'admin',
+            name: 'Administrador',
+            email: 'admin@example.com',
+            role: 'admin',
+            avatar: null
+          });
+        }
+        
+        // Check database for other users
         const user = await storage.getUserByUsername(username);
         if (!user) {
           return done(null, false, { message: "Usuário não encontrado" });
